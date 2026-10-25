@@ -22,11 +22,12 @@ const CONFIG = {
 
   // Public Overpass servers, tried one after another (never all at once)
   mirrors: [
-    "https://overpass.openstreetmap.fr/api/interpreter",
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
     "https://lz4.overpass-api.de/api/interpreter",
     "https://z.overpass-api.de/api/interpreter",
-    "https://overpass.private.coffee/api/interpreter",
-    "https://overpass.kumi.systems/api/interpreter"
+    "https://overpass.openstreetmap.fr/api/interpreter"
   ],
   points: { timeoutMs: 30000, rounds: 2 },
   routes: { timeoutMs: 45000, rounds: 1 },
