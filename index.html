@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TwinCity Transit Atlas | Rawalpindi–Islamabad Public Transport Web GIS</title>
+  <meta name="description" content="Interactive Web GIS of Metro Bus stations, bus stops and bus routes in Rawalpindi and Islamabad, built with Leaflet.js and OpenStreetMap data." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%9A%8C%3C/text%3E%3C/svg%3E" />
+
+  <!-- Apply the saved theme before the page paints (prevents a flash) -->
+  <script>
+    (function () {
+      var theme = "dark";
+      try { theme = localStorage.getItem("twincity-theme") || "dark"; } catch (e) {}
+      document.documentElement.setAttribute("data-theme", theme === "light" ? "light" : "dark");
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="4" y="3" width="16" height="14" rx="3"></rect>
+          <path d="M4 11h16M8 21l1.5-4M16 21l-1.5-4"></path>
+          <circle cx="8.5" cy="14" r=".6"></circle><circle cx="15.5" cy="14" r=".6"></circle>
+        </svg>
+      </div>
+      <div>
+        <h1>TwinCity Transit Atlas</h1>
+        <p>Public Transport Web GIS &middot; Rawalpindi &amp; Islamabad, Pakistan</p>
+      </div>
+    </div>
+    <div class="actions">
+      <button id="locateBtn" class="btn btn-primary">&#9737; Find my nearest stop</button>
+      <button id="themeBtn" class="btn" aria-label="Switch light or dark mode">&#9728; Light mode</button>
+      <button id="refreshBtn" class="btn">Refresh data</button>
+      <button id="exportBtn" class="btn">Export GeoJSON</button>
+      <button id="menuBtn" class="btn menu-btn" aria-label="Toggle panel">&#9776;</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside id="sidebar" class="sidebar">
+
+      <section class="card intro">
+        <h2>Study Area</h2>
+        <p>
+          Rawalpindi and Islamabad form Pakistan's twin-city region, linked by the
+          <strong>Rawalpindi–Islamabad Metro Bus</strong>, a 22.5&nbsp;km bus rapid transit corridor
+          running from Saddar to the Pak Secretariat. This atlas maps Metro Bus stations,
+          bus terminals, bus stops and bus routes using live OpenStreetMap data.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Live Statistics</h2>
+        <div class="stats">
+          <div class="stat"><span class="stat-num" id="statMetro">0</span><span class="stat-label">Metro Stations</span></div>
+          <div class="stat"><span class="stat-num" id="statTerminal">0</span><span class="stat-label">Bus Terminals</span></div>
+          <div class="stat"><span class="stat-num" id="statStop">0</span><span class="stat-label">Bus Stops</span></div>
+          <div class="stat"><span class="stat-num" id="statRoute">0</span><span class="stat-label">Bus Routes</span></div>
+        </div>
+        <div class="zone-bar" title="Share of visible stops by city">
+          <div id="barIsb" class="zone-seg isb"></div>
+          <div id="barRwp" class="zone-seg rwp"></div>
+        </div>
+        <div class="zone-legend">
+          <span><i class="sq isb"></i> Islamabad <b id="cntIsb">0</b></span>
+          <span><i class="sq rwp"></i> Rawalpindi <b id="cntRwp">0</b></span>
+        </div>
+        <p id="sourceInfo" class="muted small">Data status: waiting&hellip;</p>
+      </section>
+
+      <section class="card">
+        <h2>Search &amp; Filter</h2>
+        <input id="searchInput" type="search" placeholder="Search by stop or station name&hellip;" autocomplete="off" />
+
+        <div class="filter-row">
+          <label class="chip chip-metro"><input class="type-toggle" type="checkbox" value="metro" checked /><span>Metro stations</span></label>
+          <label class="chip chip-terminal"><input class="type-toggle" type="checkbox" value="terminal" checked /><span>Bus terminals</span></label>
+          <label class="chip chip-stop"><input class="type-toggle" type="checkbox" value="stop" checked /><span>Bus stops</span></label>
+          <label class="chip chip-route"><input id="routeToggle" type="checkbox" checked /><span>Route lines</span></label>
+        </div>
+
+        <div class="two-col">
+          <div>
+            <label class="field-label" for="zoneFilter">City (approximate)</label>
+            <select id="zoneFilter">
+              <option value="all">Both cities</option>
+              <option value="Islamabad">Islamabad</option>
+              <option value="Rawalpindi">Rawalpindi</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label" for="basemapSelect">Map style</label>
+            <select id="basemapSelect">
+              <option value="osm">OpenStreetMap</option>
+              <option value="satellite">Satellite</option>
+              <option value="topo">Topographic</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="result-head">
+          <span id="resultCount">0 results</span>
+          <button id="resetBtn" class="link-btn">Reset filters</button>
+        </div>
+        <ul id="resultList" class="result-list"></ul>
+      </section>
+
+      <section class="card">
+        <h2>Bus Routes</h2>
+        <input id="routeSearch" type="search" placeholder="Filter routes by name or number&hellip;" autocomplete="off" />
+        <div class="result-head">
+          <span id="routeCount">0 routes</span>
+          <span class="head-actions">
+            <button id="routesAllBtn" class="link-btn">Show all</button>
+            <button id="routesNoneBtn" class="link-btn">Hide all</button>
+          </span>
+        </div>
+        <ul id="routeList" class="route-list"></ul>
+      </section>
+
+      <section id="nearestCard" class="card nearest hidden">
+        <h2>Nearest Stop to You</h2>
+        <div id="nearestBody"></div>
+      </section>
+
+      <section class="card">
+        <h2>Legend</h2>
+        <ul class="legend">
+          <li id="legMetro"><span class="pin pin-metro static">M</span> Metro Bus station</li>
+          <li id="legTerminal"><span class="pin pin-terminal static">B</span> Bus terminal / station</li>
+          <li id="legStop"><span class="pin pin-stop static"></span> Bus stop</li>
+          <li id="legMetroRoute"><span class="line-sample metro"></span> Metro Bus route</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Data Source &amp; Attribution</h2>
+        <p class="small">
+          <strong>API:</strong> <a href="https://overpass-api.de/" target="_blank" rel="noopener">Overpass API</a>
+          (read-only query service for OpenStreetMap). No API key is required, so no secret is exposed in the code.<br />
+          <strong>Data:</strong> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>
+          contributors, licensed under the <a href="https://opendatacommons.org/licenses/odbl/" target="_blank" rel="noopener">ODbL</a>.<br />
+          <strong>Map library:</strong> <a href="https://leafletjs.com/" target="_blank" rel="noopener">Leaflet</a>
+          with Leaflet.markercluster.<br />
+          <strong>Basemap tiles:</strong> &copy; CARTO, Esri, OpenStreetMap contributors and OpenTopoMap.
+        </p>
+      </section>
+    </aside>
+
+    <section class="map-wrap">
+      <div id="map"></div>
+
+      <div id="loading" class="overlay">
+        <div class="loader"><span></span><span></span><span></span></div>
+        <h3>Loading transport data</h3>
+        <p id="loadingText">Connecting to OpenStreetMap servers&hellip;</p>
+      </div>
+
+      <div id="error" class="overlay hidden">
+        <div class="error-icon">!</div>
+        <h3>Unable to load data</h3>
+        <p id="errorText"></p>
+        <button id="retryBtn" class="btn btn-primary">Try again</button>
+      </div>
+
+      <div id="toast" class="toast hidden"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    Map data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors
+    &middot; Built with Leaflet.js &middot; Web GIS Applications (MET418), Assignment 2
+  </footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
